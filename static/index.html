@@ -339,6 +339,7 @@
         <button class="btn btn-sm" id="rzpApiBtn">🔑 Razorpay API Sync</button>
         <button class="btn btn-sm" id="uploadBankBtn">📁 Drop Bank Statement</button>
         <button class="btn btn-sm" id="exportBtn">⬇ Export CSV</button>
+        <button class="btn btn-sm" id="auditSummaryBtn" onclick="window.open('/api/export-audit-summary','_blank')">🖨️ Audit PDF Summary</button>
         <button class="btn btn-sm btn-primary" id="rerunBtn">
           <span class="spinner" id="spinner"></span>↺ Re-run
         </button>
@@ -827,6 +828,7 @@ async function openModal(pid){
       <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
         <button class="btn btn-sm btn-primary" onclick="generateTicket('${esc(pid)}')">🎫 Auto-Draft Razorpay Ticket</button>
         <button class="btn btn-sm" onclick="generateAlert('${esc(pid)}')">🚨 Generate Slack Ops Alert</button>
+        <button class="btn btn-sm" style="border-color:var(--green-bd);color:var(--green)" onclick="manualResolve('${esc(pid)}')">✓ Mark Resolved (Override)</button>
       </div>
       <div id="actionOutput" style="margin-top:10px;display:none"></div>
     </div>
@@ -997,6 +999,20 @@ async function generateAlert(pid){
     method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({payment_id:pid})
   }).then(r=>r.json());
   out.innerHTML = `<div class="kv-l">Formatted Slack Ops Alert</div><pre>${esc(res.slack_message)}</pre>`;
+}
+
+async function manualResolve(pid){
+  const note = prompt('Enter resolution note or manual bank verification reference:', 'Verified with bank receipt');
+  if(!note) return;
+  const res = await fetch('/api/actions/resolve',{
+    method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({payment_id:pid, note:note})
+  }).then(r=>r.json());
+  if(res.status==='success'){
+    report = res.report;
+    renderAll();
+    document.getElementById('modal').close();
+    showToast(`✓ Payment ${pid} manually marked as resolved!`);
+  }
 }
 
 function showToast(msg){

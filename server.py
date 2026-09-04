@@ -219,13 +219,84 @@ def api_action_ticket():
     return jsonify(generate_razorpay_ticket(pid, rec))
 
 
-@app.post("/api/actions/alert")
-def api_action_alert():
-    from engine.agent_actions import generate_ops_alert
+@app.post("/api/actions/resolve")
+def api_action_resolve():
+    global REPORT, BOT
     body = request.get_json(silent=True) or {}
     pid = body.get("payment_id")
-    rec = next((r for r in REPORT["records"] if r["payment_id"] == pid), {})
-    return jsonify(generate_ops_alert(pid, rec))
+    note = body.get("note", "Manually verified by finance manager.")
+
+    rec = next((r for r in REPORT["records"] if r["payment_id"] == pid), None)
+    if not rec:
+        return jsonify({"error": "Payment ID not found"}), 404
+
+    if rec["status"] != "MATCHED":
+        rec["status"] = "MATCHED"
+        rec["reason"] = f"Resolved via Manual Override: {note}"
+        rec["method"] = "manual_override"
+        rec["confidence"] = 1.0
+        rec["exception_type"] = None
+
+        REPORT["matched"] += 1
+        REPORT["exceptions"] = max(0, REPORT["exceptions"] - 1)
+        REPORT["match_rate"] = REPORT["matched"] / REPORT["total_records"] if REPORT["total_records"] else 0
+        BOT = FinBot(REPORT)
+
+    return jsonify({"status": "success", "record": rec, "report": REPORT})
+
+
+@app.get("/api/export-audit-summary")
+def api_export_audit_summary():
+    """Generates an executive HTML/PDF Printable Reconciliation Audit Summary."""
+    from datetime import datetime
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>FinController Audit Summary — {REPORT['run_id']}</title>
+      <style>
+        body {{ font-family: Arial, sans-serif; padding: 40px; color: #111; line-height: 1.6; }}
+        h1 {{ color: #146EB4; margin-bottom: 5px; }}
+        .meta {{ color: #666; font-size: 13px; margin-bottom: 20px; border-bottom: 2px solid #146EB4; padding-bottom: 10px; }}
+        .grid {{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }}
+        .card {{ background: #f4f7fb; padding: 15px; border-radius: 8px; border: 1px solid #d0dbe7; }}
+        .num {{ font-size: 24px; font-weight: bold; color: #146EB4; }}
+        table {{ width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }}
+        th, td {{ padding: 10px; border: 1px solid #ddd; text-align: left; }}
+        th {{ background: #146EB4; color: white; }}
+        .badge {{ background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-weight: bold; }}
+      </style>
+    </head>
+    <body>
+      <h1>FinController — Executive Audit Summary Report</h1>
+      <div class="meta">Run ID: {REPORT['run_id']} | Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Target: Razorpay 3-Way Reconciliation</div>
+      
+      <div class="grid">
+        <div class="card"><div>Total Payments</div><div class="num">{REPORT['total_records']}</div></div>
+        <div class="card"><div>Match Rate</div><div class="num">{REPORT['match_rate']:.2%}</div></div>
+        <div class="card"><div>Reconciled</div><div class="num" style="color:#16a34a">{REPORT['matched']}</div></div>
+        <div class="card"><div>Amount at Risk</div><div class="num" style="color:#dc2626">₹{abs(REPORT['total_discrepancy']):,.2f}</div></div>
+      </div>
+
+      <h2>Audit Exceptions Breakdown ({REPORT['exceptions']} Open Cases)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Payment ID</th>
+            <th>Exception Type</th>
+            <th>Discrepancy (₹)</th>
+            <th>Status</th>
+            <th>Engine Explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          {"".join(f"<tr><td>{r['payment_id']}</td><td><span class='badge'>{r.get('exception_type') or 'N/A'}</span></td><td>₹{abs(r.get('discrepancy', 0)):,.2f}</td><td>{r['status']}</td><td>{r['reason']}</td></tr>" for r in REPORT['records'] if r['status'] != 'MATCHED')}
+        </tbody>
+      </table>
+    </body>
+    </html>
+    """
+    return html_content, 200, {"Content-Type": "text/html"}
 
 
 # ── Entry point ──────────────────────────────────────────────────────────────
