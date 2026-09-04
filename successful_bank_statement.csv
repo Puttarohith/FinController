@@ -1,0 +1,11 @@
+settlement_date,payment_id,settled_amount,credit_debit,narration
+2026-08-03,pay_cfcd208495d565,194.62,CR,Razorpay Settlement Payout Ref 1001
+2026-08-04,pay_c4ca4238a0b923,292.42,CR,Razorpay Settlement Payout Ref 1002
+2026-08-05,pay_c81e728d9d4c2f,488.02,CR,Razorpay Settlement Payout Ref 1003
+2026-08-07,pay_a87ff679a2f3e7,781.42,CR,Razorpay Settlement Payout Ref 1005
+2026-08-08,pay_e4da3b7fbbce23,977.02,CR,Razorpay Settlement Payout Ref 1006
+2026-08-09,pay_1679091c5a880f,1466.02,CR,Razorpay Settlement Payout Ref 1007
+2026-08-10,pay_8f14e45fceea16,1955.02,CR,Razorpay Settlement Payout Ref 1008
+2026-08-11,pay_c9f0f895fb98ab,2444.02,CR,Razorpay Settlement Payout Ref 1009
+2026-08-12,pay_45c48cce2e2d7f,4889.02,CR,Razorpay Settlement Payout Ref 1010
+2026-08-13,pay_d3d9446802a442,194.62,CR,Razorpay Settlement Payout Ref 1011
