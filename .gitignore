@@ -1,0 +1,18 @@
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data & Runtime artifacts (optional to ignore or keep)
+data/*.json
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+
+# Logs & IDEs
+*.log
+.vscode/
+.idea/
+.DS_Store

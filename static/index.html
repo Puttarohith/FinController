@@ -1,0 +1,1023 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title id="pageTitle">FinController — AI Finance Reconciliation</title>
+  <meta name="description" content="FinController reconciles payments across orders, Razorpay ledger, and bank settlements with AI-powered exception detection.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23305EFF'/><text x='16' y='22' text-anchor='middle' font-size='20' font-family='Inter,sans-serif' font-weight='700' fill='white'>F</text></svg>">
+  <style>
+    /* ── Design Tokens ──────────────────────────────────────────── */
+    :root {
+      --bg:           #070d14;
+      --surface:      #0C1927;
+      --surface-2:    #192839;
+      --surface-3:    #243547;
+      --border:       #243547;
+      --border-2:     #324559;
+      --text:         #F1F5FA;
+      --text-2:       #AAB8C5;
+      --muted:        #7A8E9F;
+
+      --rzp:          #305EFF;
+      --rzp-l:        #5278FF;
+      --rzp-xl:       #829FFF;
+      --rzp-glow:     rgba(48,94,255,0.25);
+      --rzp-glow-sm:  rgba(48,94,255,0.12);
+
+      --green:        #A0F150;
+      --green-bg:     rgba(160,241,80,0.08);
+      --green-bd:     rgba(160,241,80,0.25);
+      --red:          #FF8A80;
+      --red-bg:       rgba(255,138,128,0.08);
+      --red-bd:       rgba(255,138,128,0.25);
+      --amber:        #FBEC51;
+      --amber-bg:     rgba(251,236,81,0.08);
+      --amber-bd:     rgba(251,236,81,0.25);
+      --blue:         #7DD5E9;
+      --blue-bg:      rgba(125,213,233,0.08);
+      --blue-bd:      rgba(125,213,233,0.25);
+      --purple:       #826DFF;
+      --purple-bg:    rgba(130,109,255,0.08);
+
+      --shadow:       0 16px 48px rgba(0,0,0,0.55);
+      --shadow-sm:    0 4px 14px rgba(0,0,0,0.35);
+      --r:            10px;
+      --r-sm:         6px;
+    }
+
+    /* ── Reset ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    em { font-style: italic; }
+
+    /* ── Typography ─────────────────────────────────────────────── */
+    h1 { font-size: clamp(20px, 2.8vw, 30px); font-weight: 700; line-height: 1.15; letter-spacing: -0.5px; }
+    h2 { font-size: 15px; font-weight: 600; }
+    .mono { font-family: 'JetBrains Mono', 'Consolas', monospace; }
+    .muted { color: var(--muted); }
+
+    /* ── Layout ─────────────────────────────────────────────────── */
+    .wrap { max-width: 1420px; margin: 0 auto; padding: 28px 24px 56px; }
+
+    /* ── Buttons ─────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--surface-2); color: var(--text-2);
+      border: 1px solid var(--border-2); border-radius: var(--r-sm);
+      padding: 7px 13px; cursor: pointer; font-size: 13px; font-weight: 500;
+      transition: border-color .15s, color .15s, background .15s, transform .1s, box-shadow .15s;
+      white-space: nowrap; line-height: 1;
+    }
+    .btn:hover { border-color: var(--rzp); color: var(--rzp-xl); background: var(--rzp-glow-sm); }
+    .btn:active { transform: scale(0.97); }
+    .btn.active { border-color: var(--rzp); color: var(--rzp-xl); background: var(--rzp-glow-sm); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-primary {
+      background: var(--rzp); border-color: transparent; color: #fff; font-weight: 600;
+      box-shadow: 0 0 22px var(--rzp-glow), 0 2px 8px rgba(0,0,0,.35);
+    }
+    .btn-primary:hover { background: var(--rzp-l); color: #fff; border-color: transparent; box-shadow: 0 0 32px var(--rzp-glow); }
+    input {
+      width: 100%; background: var(--surface-2); color: var(--text);
+      border: 1px solid var(--border-2); border-radius: var(--r-sm);
+      padding: 8px 12px; outline: none; font-size: 13px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    input:focus { border-color: var(--rzp); box-shadow: 0 0 0 3px var(--rzp-glow-sm); }
+    input::placeholder { color: var(--muted); }
+
+    /* ── Header ─────────────────────────────────────────────────── */
+    .header {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      gap: 20px; padding-bottom: 24px; margin-bottom: 26px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header-left { flex: 1; min-width: 0; }
+    .header-right { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+    .topline { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+    .pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      border: 1px solid var(--border-2); border-radius: 999px;
+      padding: 3px 10px; font-size: 12px; font-weight: 500; color: var(--text-2);
+    }
+    .pill.complete { border-color: var(--green-bd); color: var(--green); background: var(--green-bg); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 2.2s ease infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
+    .run-meta { text-align: right; }
+    .run-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+    .run-id { font-size: 12px; color: var(--text-2); word-break: break-all; max-width: 340px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .spinner { display: none; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; border-radius: 50%; animation: spin .65s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Summary Strip ───────────────────────────────────────────── */
+    .summary-strip { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .summary-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 18px 20px;
+      animation: fadeUp .45s ease both;
+    }
+    .summary-card:nth-child(1){animation-delay:0ms}
+    .summary-card:nth-child(2){animation-delay:55ms}
+    .summary-card:nth-child(3){animation-delay:110ms}
+    .summary-card:nth-child(4){animation-delay:165ms}
+    .summary-card h2 { margin-bottom: 8px; }
+    .summary-card p { color: var(--text-2); font-size: 13px; line-height: 1.65; }
+    .summary-num { font-size: 36px; font-weight: 700; letter-spacing: -1.5px; margin-bottom: 6px; line-height: 1; }
+    .summary-num.green { color: var(--green); }
+    .summary-num.red   { color: var(--red); }
+    .summary-num.amber { color: var(--amber); }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Metric Grid ─────────────────────────────────────────────── */
+    .metric-grid { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
+    .metric {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--r);
+      padding: 16px; display: flex; flex-direction: column; gap: 8px;
+      animation: fadeUp .45s ease both;
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+    }
+    .metric:hover { border-color: var(--border-2); transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+    .metric:nth-child(1){animation-delay:80ms}.metric:nth-child(2){animation-delay:120ms}
+    .metric:nth-child(3){animation-delay:160ms}.metric:nth-child(4){animation-delay:200ms}
+    .metric:nth-child(5){animation-delay:240ms}.metric:nth-child(6){animation-delay:280ms}
+    .metric-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .055em; }
+    .metric-val { font-size: 22px; font-weight: 700; letter-spacing: -.5px; line-height: 1.1; }
+    .metric-sub { font-size: 11px; color: var(--muted); line-height: 1.45; margin-top: auto; }
+    .metric-bar { height: 2px; border-radius: 999px; margin-top: 2px; }
+    .metric.good .metric-val { color: var(--green); }
+    .metric.good .metric-bar { background: linear-gradient(90deg, var(--green), transparent); }
+    .metric.risk .metric-val { color: var(--amber); }
+    .metric.risk .metric-bar { background: linear-gradient(90deg, var(--amber), transparent); }
+    .metric.bad  .metric-val { color: var(--red); }
+    .metric.bad  .metric-bar { background: linear-gradient(90deg, var(--red), transparent); }
+    .metric.blue .metric-val { color: var(--blue); }
+    .metric.blue .metric-bar { background: linear-gradient(90deg, var(--blue), transparent); }
+
+    /* ── Panels ──────────────────────────────────────────────────── */
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--r); padding: 20px; box-shadow: var(--shadow-sm);
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; margin-bottom: 16px;
+    }
+    .split { display: grid; grid-template-columns: 1.25fr .75fr; gap: 14px; margin-bottom: 14px; }
+
+    /* ── Accuracy Panel ──────────────────────────────────────────── */
+    .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-2); margin-bottom: 7px; }
+    .progress-track { height: 8px; background: var(--surface-3); border-radius: 999px; overflow: hidden; border: 1px solid var(--border); }
+    .progress-fill {
+      height: 100%; width: 0;
+      background: linear-gradient(90deg, var(--rzp), var(--green));
+      border-radius: 999px; transition: width 1.1s cubic-bezier(.4,0,.2,1);
+      box-shadow: 0 0 14px var(--rzp-glow);
+    }
+    .acc-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 14px; }
+    .acc-stat { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; }
+    .acc-stat-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+    .acc-stat-val { font-size: 20px; font-weight: 700; color: var(--green); }
+    .acc-stat-desc { font-size: 11px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+
+    /* ── Donut ───────────────────────────────────────────────────── */
+    .donut-wrap { display: flex; align-items: center; gap: 18px; }
+    .donut-container { position: relative; flex-shrink: 0; width: 140px; height: 140px; }
+    .donut-center { position: absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+    .donut-center-num { font-size: 24px; font-weight: 700; color: var(--red); line-height: 1; }
+    .donut-center-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; margin-top: 2px; letter-spacing: .04em; }
+    .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+    .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .legend-name { flex: 1; color: var(--text-2); }
+    .legend-cnt { font-weight: 600; color: var(--text); }
+
+    /* ── FinBot ──────────────────────────────────────────────────── */
+    .finbot-title { display: flex; align-items: center; gap: 10px; }
+    .finbot-avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--rzp), var(--rzp-l));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0;
+      box-shadow: 0 0 14px var(--rzp-glow);
+    }
+    .finbot-badge {
+      font-size: 11px; padding: 2px 9px; border-radius: 999px;
+      background: var(--rzp-glow-sm); border: 1px solid rgba(78,168,240,.2);
+      color: var(--blue);
+    }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .chip {
+      font-size: 12px; color: var(--text-2); background: var(--surface-2);
+      border: 1px solid var(--border-2); border-radius: 999px; padding: 4px 13px;
+      cursor: pointer; transition: all .14s;
+    }
+    .chip:hover { border-color: var(--rzp); color: var(--rzp-xl); background: var(--rzp-glow-sm); }
+    .thread {
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--r-sm); padding: 14px;
+      min-height: 110px; max-height: 240px; overflow-y: auto;
+      margin-bottom: 10px; scroll-behavior: smooth;
+    }
+    .msg { margin-bottom: 14px; }
+    .msg:last-child { margin-bottom: 0; }
+    .msg-who { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .055em; margin-bottom: 3px; }
+    .msg.user .msg-who { color: var(--rzp-xl); }
+    .msg.bot  .msg-who { color: var(--green); }
+    .msg.user .msg-body { color: var(--text); }
+    .msg.bot  .msg-body { color: var(--text-2); line-height: 1.6; }
+    .composer { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .typing { display: inline-flex; gap: 3px; align-items: center; padding: 4px 0; }
+    .typing span { width: 5px; height: 5px; background: var(--muted); border-radius: 50%; animation: blink 1.3s ease infinite; }
+    .typing span:nth-child(2){animation-delay:.22s}
+    .typing span:nth-child(3){animation-delay:.44s}
+    @keyframes blink { 0%,60%,100%{opacity:.25;transform:translateY(0)} 30%{opacity:1;transform:translateY(-3px)} }
+
+    /* ── Records ─────────────────────────────────────────────────── */
+    .records-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+    .records-toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+    .records-toolbar input { flex: 1; min-width: 220px; }
+    .filters { display: flex; gap: 6px; flex-wrap: wrap; }
+    .rec-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-sm); }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1100px; }
+    th, td { text-align: left; padding: 10px 12px; font-size: 13px; vertical-align: middle; border-bottom: 1px solid var(--border); }
+    th { position: sticky; top: 0; background: var(--surface-3); color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; z-index: 1; white-space: nowrap; }
+    tr:last-child td { border-bottom: 0; }
+    tbody tr { cursor: pointer; transition: background .1s; }
+    tbody tr:hover { background: var(--surface-3); }
+    tbody tr.late td:first-child { border-left: 3px solid var(--amber); padding-left: 9px; }
+    .pid-cell { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--text-2); }
+    .spill { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
+    .spill-m { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-bd); }
+    .spill-e { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-bd); }
+    .mlbl { font-size: 12px; font-weight: 500; }
+    .mlbl-det   { color: var(--green); }
+    .mlbl-fuzzy { color: var(--amber); }
+    .mlbl-ai    { color: var(--blue); }
+    .num { text-align: right; font-variant-numeric: tabular-nums; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+    .disc-neg { color: var(--red); }
+    .disc-z   { color: var(--muted); }
+    .reason-cell { max-width: 280px; color: var(--text-2); font-size: 12px; line-height: 1.5; }
+    .late-badge { display: inline-block; background: var(--amber-bg); color: var(--amber); border: 1px solid var(--amber-bd); border-radius: 4px; font-size: 10px; font-weight: 700; padding: 1px 5px; margin-left: 5px; vertical-align: middle; }
+    .empty-row { padding: 40px; text-align: center; color: var(--muted); font-size: 13px; }
+
+    /* ── Modal ───────────────────────────────────────────────────── */
+    dialog {
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border-2); border-radius: var(--r);
+      max-width: 1000px; width: 94vw; padding: 0;
+      box-shadow: var(--shadow);
+    }
+    dialog::backdrop { background: rgba(0,4,14,.82); backdrop-filter: blur(5px); }
+    .mhd { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding: 20px; border-bottom: 1px solid var(--border); }
+    .mpid { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500; }
+    .msub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .mbody { padding: 20px; display: grid; gap: 14px; max-height: 80vh; overflow-y: auto; }
+    .kv-g { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+    .src-g { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+    .kv { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; }
+    .kv-l { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .055em; color: var(--muted); margin-bottom: 6px; }
+    .kv-v { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+    pre { white-space: pre-wrap; background: var(--surface-3); border: 1px solid var(--border); padding: 12px; border-radius: var(--r-sm); max-height: 200px; overflow-y: auto; font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-2); line-height: 1.6; }
+
+    /* ── Footer ──────────────────────────────────────────────────── */
+    .footer { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 24px; font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; line-height: 1.9; overflow-wrap: anywhere; }
+    .status-complete { display: inline-flex; align-items: center; gap: 4px; background: var(--green-bg); border: 1px solid var(--green-bd); color: var(--green); border-radius: 4px; padding: 1px 7px; font-size: 11px; font-weight: 600; margin-right: 8px; }
+
+    /* ── Responsive ──────────────────────────────────────────────── */
+    @media(max-width:1120px){
+      .metric-grid{grid-template-columns:repeat(3,1fr)}
+      .summary-strip{grid-template-columns:1fr 1fr}
+      .split{grid-template-columns:1fr}
+    }
+    @media(max-width:720px){
+      .wrap{padding:14px 12px 36px}
+      .header{flex-direction:column}
+      .header-right{align-items:flex-start}
+      .metric-grid{grid-template-columns:repeat(2,1fr)}
+      .summary-strip{grid-template-columns:1fr}
+      .kv-g,.src-g,.acc-stats{grid-template-columns:1fr}
+      .composer{grid-template-columns:1fr}
+      .donut-wrap{flex-direction:column;align-items:flex-start}
+      h1{font-size:22px}
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── Header ── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="topline">
+        <span class="pill complete"><span class="dot"></span>COMPLETE</span>
+        <span class="pill">Sources: orders, Razorpay, bank</span>
+      </div>
+      <h1>FinController — AI Finance Reconciliation</h1>
+      <div style="margin-top:7px;font-size:13px;color:var(--muted)" id="runAt">Loading…</div>
+    </div>
+    <div class="header-right">
+      <div class="run-meta">
+        <div class="run-label">Run ID</div>
+        <div class="run-id mono" id="runId">…</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-sm" id="rzpApiBtn">🔑 Razorpay API Sync</button>
+        <button class="btn btn-sm" id="uploadBankBtn">📁 Drop Bank Statement</button>
+        <button class="btn btn-sm" id="exportBtn">⬇ Export CSV</button>
+        <button class="btn btn-sm btn-primary" id="rerunBtn">
+          <span class="spinner" id="spinner"></span>↺ Re-run
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Live Webhook Simulator & Ingestion Bar ── -->
+  <section class="panel" style="margin-bottom:14px;background:linear-gradient(135deg, var(--surface), #0f1c30);border-color:var(--rzp-glow)">
+    <div class="panel-head" style="margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="pill" style="border-color:var(--rzp);color:var(--rzp-xl);background:var(--rzp-glow-sm)">⚡ LIVE ENGINE</span>
+        <h2>Live Webhook Event Simulator & Ingestion Pipeline</h2>
+      </div>
+      <span style="font-size:12px;color:var(--muted)">Fires real-time webhook payloads into reconciler</span>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center" id="simulatorButtons">
+      <button class="btn btn-sm" onclick="triggerSimEvent('clean_match')">⚡ Fire Clean Match</button>
+      <button class="btn btn-sm" onclick="triggerSimEvent('missing_bank')">⚠️ Fire Missing Settlement</button>
+      <button class="btn btn-sm" onclick="triggerSimEvent('amount_mismatch')">⚖️ Fire Amount Mismatch</button>
+      <button class="btn btn-sm" onclick="triggerSimEvent('duplicate_credit')">📋 Fire Duplicate Credit</button>
+    </div>
+  </section>
+
+  <!-- ── Summary Strip ── -->
+  <section class="summary-strip" id="summaryStrip"></section>
+
+  <!-- ── Metric Cards ── -->
+  <section class="metric-grid" id="metricGrid"></section>
+
+  <!-- ── Split: Accuracy | Exception Breakdown ── -->
+  <div class="split" style="margin-bottom:14px">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Accuracy Metrics</h2>
+        <span style="font-size:12px;color:var(--muted)" id="progText"></span>
+      </div>
+      <div class="progress-labels">
+        <span>Match rate</span>
+        <span style="font-weight:600;color:var(--green)" id="matchRateLbl"></span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+      <div class="acc-stats" id="accStats"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Exception Breakdown</h2>
+        <span style="font-size:12px;color:var(--muted)" id="excTotal"></span>
+      </div>
+      <div class="donut-wrap">
+        <div class="donut-container">
+          <canvas id="donutCanvas" width="140" height="140"></canvas>
+          <div class="donut-center">
+            <div class="donut-center-num" id="donutNum">—</div>
+            <div class="donut-center-lbl">exceptions</div>
+          </div>
+        </div>
+        <div class="donut-legend" id="donutLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FinBot ── -->
+  <div class="panel" style="margin-bottom:14px">
+    <div class="panel-head">
+      <div class="finbot-title">
+        <div class="finbot-avatar">F</div>
+        <div>
+          <h2 style="margin-bottom:2px">FinBot</h2>
+          <span class="finbot-badge">✦ AI · answers only from this report</span>
+        </div>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="thread" id="thread">
+      <div class="msg bot">
+        <div class="msg-who">FinBot</div>
+        <div class="msg-body">Ask about a metric, exception, discrepancy, or payment ID from this run.</div>
+      </div>
+    </div>
+    <div class="composer">
+      <input id="question" placeholder="e.g. What should I review first? · Show exceptions · What is amount at risk?">
+      <button class="btn btn-primary" id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <!-- ── Records Table ── -->
+  <div class="panel" style="margin-bottom:14px">
+    <div class="records-head">
+      <h2>Payment Records</h2>
+      <span style="font-size:12px;color:var(--muted)" id="visCount"></span>
+    </div>
+    <div class="records-toolbar">
+      <input id="search" placeholder="Search payment ID, exception, method, or reason…">
+      <div class="filters" id="filters"></div>
+      <div class="rec-actions">
+        <button class="btn btn-sm" id="sortBtn" title="Sort exceptions by ₹ discrepancy">⇅ Sort by ₹</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Payment ID</th><th>Result</th><th>Issue</th>
+            <th class="num">Order ₹</th><th class="num">Razorpay Net ₹</th>
+            <th class="num">Bank Settled ₹</th><th class="num">Difference</th>
+            <th>Checked by</th><th class="num">Confidence</th><th>Explanation</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <div class="footer" id="footer"></div>
+</div>
+
+<!-- ── Bank Upload Modal ── -->
+<dialog id="uploadModal">
+  <div class="mhd">
+    <div>
+      <div class="mpid">📁 Ingest Custom Bank Statement</div>
+      <div class="msub">Upload CSV or Excel bank settlement file to trigger automated reconciliation</div>
+    </div>
+    <button class="btn" onclick="document.getElementById('uploadModal').close()">✕ Close</button>
+  </div>
+  <div class="mbody">
+    <div id="dropzone" style="border:2px dashed var(--rzp);border-radius:var(--r);padding:40px 20px;text-align:center;background:var(--surface-2);cursor:pointer;transition:background .2s">
+      <div style="font-size:32px;margin-bottom:10px">📄</div>
+      <div style="font-weight:600;font-size:15px;margin-bottom:4px">Drag & Drop Bank Settlement File Here</div>
+      <div style="font-size:12px;color:var(--muted)">Supports .csv, .xls, .xlsx files with settlement date, payment_id, and settled_amount</div>
+      <input type="file" id="bankFileInput" accept=".csv,.xls,.xlsx" style="display:none">
+    </div>
+    <div id="uploadStatus" style="font-size:13px;color:var(--rzp-xl);text-align:center"></div>
+  </div>
+</dialog>
+
+<!-- ── Razorpay API Credentials Modal ── -->
+<dialog id="apiModal">
+  <div class="mhd">
+    <div>
+      <div class="mpid">🔑 Razorpay Live REST API Integration</div>
+      <div class="msub">Connect directly to Razorpay API to pull live payments & settlements</div>
+    </div>
+    <button class="btn" onclick="document.getElementById('apiModal').close()">✕ Close</button>
+  </div>
+  <div class="mbody" style="gap:14px">
+    <div>
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Razorpay Key ID</label>
+      <input id="rzpKeyId" placeholder="rzp_test_..." value="">
+    </div>
+    <div>
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:4px">Razorpay Key Secret</label>
+      <input id="rzpKeySecret" type="password" placeholder="••••••••••••••••" value="">
+    </div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;background:var(--surface-2);padding:10px;border-radius:var(--r-sm)">
+      ✦ If credentials are left blank, FinController uses built-in Live Mock API Sandbox to demonstrate production API data ingestion.
+    </div>
+    <button class="btn btn-primary" id="startRzpSyncBtn" style="justify-content:center;padding:10px">Fetch Live Transactions</button>
+    <div id="apiSyncStatus" style="font-size:13px;text-align:center"></div>
+  </div>
+</dialog>
+
+<!-- ── Evidence Modal ── -->
+<dialog id="modal">
+  <div class="mhd">
+    <div>
+      <div class="mpid" id="modalPid"></div>
+      <div class="msub" id="modalSub"></div>
+    </div>
+    <button class="btn" id="closeModal">✕ Close</button>
+  </div>
+  <div class="mbody" id="modalBody"></div>
+</dialog>
+
+<script>
+/* ── State ─────────────────────────────────────── */
+let report = null;
+let activeFilter = 'ALL';
+let sortByDisc = false;
+
+const COLORS = ['#FF8A80','#FBEC51','#7DD5E9','#A0F150','#826DFF','#FF9800','#00BE5F'];
+const EXC_ICON = {
+  AMOUNT_MISMATCH:'⚖️', DUPLICATE_BANK:'📋', FAILED:'✗',
+  GHOST_ENTRY:'👻', MISSING_IN_BANK:'🔍', REFUND_MISSING:'↩',
+  LATE_SETTLEMENT:'⏰', INSUFFICIENT_EVIDENCE:'⚠️', PARSE_ERROR:'🚫'
+};
+const EXC_DESC = {
+  AMOUNT_MISMATCH:'Bank settled amount differs from Razorpay net.',
+  DUPLICATE_BANK:'Multiple bank rows for one payment ID.',
+  FAILED:'Payment failed — no settlement expected.',
+  GHOST_ENTRY:'Bank credit with no Razorpay ledger record.',
+  MISSING_IN_BANK:'Razorpay captured it; bank has no settlement.',
+  REFUND_MISSING:'Bank entry is a refund debit, not a credit.',
+  LATE_SETTLEMENT:'Bank settled more than 3 days after capture.',
+  INSUFFICIENT_EVIDENCE:'Fuzzy score below threshold; needs human review.',
+  PARSE_ERROR:'Malformed row quarantined to protect the run.',
+};
+
+/* ── Formatters ─────────────────────────────────── */
+const inr = v => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',minimumFractionDigits:2}).format(v||0);
+const pct = v => `${((v||0)*100).toFixed(2)}%`;
+const esc = v => String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const lab = v => String(v).replaceAll('_',' ').toLowerCase().replace(/\b\w/g,c=>c.toUpperCase());
+const mLab = m => m==='ai'?'AI verified':m==='fuzzy'?'Fuzzy match':'Rules engine';
+const mCls = m => m==='ai'?'mlbl-ai':m==='fuzzy'?'mlbl-fuzzy':'mlbl-det';
+
+/* ── Count-up ───────────────────────────────────── */
+function countUp(el, target, dur=850, floats=false, pre='', suf=''){
+  const t0 = performance.now();
+  (function step(now){
+    const p = Math.min((now-t0)/dur,1);
+    const e = 1-Math.pow(1-p,3);
+    const v = floats ? (target*e).toFixed(2) : Math.round(target*e);
+    el.textContent = pre + Number(v).toLocaleString('en-IN') + suf;
+    if(p<1) requestAnimationFrame(step);
+    else el.textContent = pre + (floats?target.toFixed(2):Number(target).toLocaleString('en-IN')) + suf;
+  })(t0);
+}
+
+/* ── Bootstrap ──────────────────────────────────── */
+fetch('/api/report')
+  .then(r=>r.json())
+  .then(d=>{ report=d; renderAll(); })
+  .catch(()=>{ document.getElementById('runAt').textContent='⚠ Failed to load report. Is server.py running?'; });
+
+function renderAll(){
+  renderHeader();
+  renderSummary();
+  renderMetrics();
+  renderAccuracy();
+  renderDonut();
+  renderChips();
+  renderFilters();
+  renderTable();
+  renderFooter();
+}
+
+/* ── Header ─────────────────────────────────────── */
+function renderHeader(){
+  const d = new Date(report.run_at);
+  document.getElementById('runAt').textContent =
+    'Run timestamp: ' + d.toLocaleString('en-IN',{dateStyle:'medium',timeStyle:'short'});
+  document.getElementById('runId').textContent = report.run_id;
+  document.title = `FinController — ${pct(report.match_rate)} matched`;
+}
+
+/* ── Summary Strip ──────────────────────────────── */
+function renderSummary(){
+  const s = document.getElementById('summaryStrip');
+  s.innerHTML = `
+    <div class="summary-card">
+      <h2>Run Summary</h2>
+      <p style="margin-top:8px">Checks each payment across orders, Razorpay ledger, and bank settlement.
+      Clean payments are reconciled. Anything ambiguous stays open as <em>"Unable to resolve"</em> with a reason.
+      Precision and recall are measured against immutable ground truth generated at data-creation time.</p>
+    </div>
+    <div class="summary-card">
+      <div class="summary-num green" id="sMatched">—</div>
+      <p>payments reconciled — no further action needed.</p>
+    </div>
+    <div class="summary-card">
+      <div class="summary-num red" id="sExc">—</div>
+      <p>payments flagged for finance team review.</p>
+    </div>
+    <div class="summary-card">
+      <div class="summary-num amber" id="sRisk">—</div>
+      <p>total amount under investigation.</p>
+    </div>
+  `;
+  setTimeout(()=>{
+    countUp(document.getElementById('sMatched'), report.matched, 800);
+    countUp(document.getElementById('sExc'), report.exceptions, 800);
+    const riskEl = document.getElementById('sRisk');
+    countUp(riskEl, Math.abs(report.total_discrepancy), 900, true, '₹');
+  }, 80);
+}
+
+/* ── Metric Cards ───────────────────────────────── */
+function renderMetrics(){
+  const m = report.metrics||{};
+  const cards = [
+    {lbl:'Payments Checked', val:report.total_records, sub:'Full batch processed', cls:'', id:'mc0', raw:report.total_records},
+    {lbl:'Match Rate',       val:pct(report.match_rate), sub:`${report.matched} of ${report.total_records} closed`, cls:'good', id:'mc1'},
+    {lbl:'Precision',        val:pct(m.precision), sub:`${m.false_match_count||0} false match${m.false_match_count===1?'':'es'}`, cls:'good', id:'mc2'},
+    {lbl:'Needs Review',     val:report.exceptions, sub:'Every case has a reason', cls:'bad', id:'mc3', raw:report.exceptions},
+    {lbl:'Amount at Risk',   val:inr(Math.abs(report.total_discrepancy)), sub:'Unresolved discrepancy', cls:'risk', id:'mc4'},
+    {lbl:'Run Speed',        val:`${report.processing_time_ms}ms`, sub:`${report.records_per_second} rec/sec`, cls:'blue', id:'mc5'},
+  ];
+  document.getElementById('metricGrid').innerHTML = cards.map(c=>`
+    <div class="metric ${c.cls}">
+      <div class="metric-label">${c.lbl}</div>
+      <div class="metric-val" id="${c.id}">${c.raw!=null?'0':c.val}</div>
+      <div class="metric-sub">${c.sub}</div>
+      <div class="metric-bar"></div>
+    </div>`).join('');
+  setTimeout(()=>{
+    countUp(document.getElementById('mc0'), report.total_records, 700);
+    countUp(document.getElementById('mc3'), report.exceptions, 700);
+  },140);
+}
+
+/* ── Accuracy ───────────────────────────────────── */
+function renderAccuracy(){
+  const m = report.metrics||{};
+  document.getElementById('progText').textContent = `${report.matched} closed · ${report.exceptions} open`;
+  document.getElementById('matchRateLbl').textContent = pct(report.match_rate);
+  setTimeout(()=>{ document.getElementById('progFill').style.width = pct(report.match_rate); }, 250);
+  document.getElementById('accStats').innerHTML = [
+    ['Precision', m.precision, 'Of matched, how many correct'],
+    ['Recall',    m.recall,    'Of matchable, how many found'],
+    ['F1 Score',  m.f1,        'Balanced accuracy score'],
+  ].map(([l,v,d])=>`
+    <div class="acc-stat">
+      <div class="acc-stat-label">${l}</div>
+      <div class="acc-stat-val">${pct(v)}</div>
+      <div class="acc-stat-desc">${d}</div>
+    </div>`).join('');
+}
+
+/* ── Donut Chart ────────────────────────────────── */
+function renderDonut(){
+  const sum = report.exception_summary||{};
+  const entries = Object.entries(sum).sort((a,b)=>b[1]-a[1]);
+  const total = entries.reduce((s,[,v])=>s+v, 0);
+  document.getElementById('donutNum').textContent = total;
+  document.getElementById('excTotal').textContent = `${total} total`;
+
+  const canvas = document.getElementById('donutCanvas');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,140,140);
+  const cx=70,cy=70,r=58,hole=36;
+  let angle = -Math.PI/2;
+  const gap = total>1?0.04:0;
+  entries.forEach(([,v],i)=>{
+    const sweep = (v/total)*Math.PI*2 - gap;
+    ctx.beginPath();
+    ctx.moveTo(cx,cy);
+    ctx.arc(cx,cy,r,angle,angle+sweep);
+    ctx.closePath();
+    ctx.fillStyle = COLORS[i%COLORS.length];
+    ctx.fill();
+    angle += sweep+gap;
+  });
+  ctx.beginPath();
+  ctx.arc(cx,cy,hole,0,Math.PI*2);
+  ctx.fillStyle = '#0c1322';
+  ctx.fill();
+
+  document.getElementById('donutLegend').innerHTML = entries.map(([k,v],i)=>`
+    <div class="legend-row">
+      <div class="legend-dot" style="background:${COLORS[i%COLORS.length]}"></div>
+      <div class="legend-name">${EXC_ICON[k]||''} ${lab(k)}</div>
+      <div class="legend-cnt">${v}</div>
+    </div>`).join('');
+}
+
+/* ── FinBot chips ───────────────────────────────── */
+function renderChips(){
+  const topExc = Object.entries(report.exception_summary||{}).sort((a,b)=>b[1]-a[1])[0];
+  const qs = [
+    'What should I review first?',
+    'What is amount at risk?',
+    'Show exceptions',
+    'What is accuracy?',
+    topExc ? `How many ${lab(topExc[0])} cases?` : 'What is match rate?',
+  ];
+  document.getElementById('chips').innerHTML = qs.map(q=>`
+    <button class="chip" onclick="ask('${esc(q)}')">${esc(q)}</button>`).join('');
+}
+
+/* ── Filters ────────────────────────────────────── */
+function renderFilters(){
+  const types = Object.keys(report.exception_summary||{});
+  const all = ['ALL','MATCHED','EXCEPTIONS',...types];
+  document.getElementById('filters').innerHTML = all.map(f=>`
+    <button class="btn btn-sm ${activeFilter===f?'active':''}" onclick="setFilter('${f}')">${fLab(f)}</button>`).join('');
+}
+function fLab(v){
+  if(v==='ALL') return 'All';
+  if(v==='MATCHED') return '✓ Matched';
+  if(v==='EXCEPTIONS') return '⚠ Exceptions';
+  return lab(v);
+}
+function setFilter(v){ activeFilter=v; renderFilters(); renderTable(); }
+
+/* ── Table ──────────────────────────────────────── */
+function filtered(){
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  let rows = (report.records||[]).filter(r=>{
+    const ok = activeFilter==='ALL'
+      ||(activeFilter==='MATCHED'&&r.status==='MATCHED')
+      ||(activeFilter==='EXCEPTIONS'&&r.status!=='MATCHED')
+      ||r.exception_type===activeFilter;
+    const txt = [r.payment_id,r.status,r.exception_type,r.method,r.reason].join(' ').toLowerCase();
+    return ok&&(!q||txt.includes(q));
+  });
+  if(sortByDisc) rows = rows.slice().sort((a,b)=>Math.abs(b.discrepancy||0)-Math.abs(a.discrepancy||0));
+  return rows;
+}
+function renderTable(){
+  const data = filtered();
+  document.getElementById('visCount').textContent = `${data.length} of ${(report.records||[]).length} records`;
+  const body = document.getElementById('tableBody');
+  if(!data.length){
+    body.innerHTML=`<tr><td colspan="10"><div class="empty-row">🔍 No records match the current filter.</div></td></tr>`;
+    return;
+  }
+  body.innerHTML = data.map(r=>{
+    const ok = r.status==='MATCHED';
+    const disc = r.discrepancy||0;
+    const late = r.evidence&&r.evidence.late_settlement_warning;
+    return `<tr tabindex="0" data-pid="${esc(r.payment_id)}" ${late?'class="late"':''}>
+      <td class="pid-cell">${esc(r.payment_id)}${late?'<span class="late-badge">⏰ LATE</span>':''}</td>
+      <td><span class="spill ${ok?'spill-m':'spill-e'}">${ok?'✓ Matched':'⚠ Exception'}</span></td>
+      <td>${r.exception_type?`${EXC_ICON[r.exception_type]||''} ${esc(lab(r.exception_type))}`:'<span class="muted">—</span>'}</td>
+      <td class="num">${inr(r.order_amount)}</td>
+      <td class="num">${inr(r.razorpay_net_amount)}</td>
+      <td class="num">${inr(r.bank_settled_amount)}</td>
+      <td class="num ${disc!==0?'disc-neg':'disc-z'}">${disc!==0?inr(disc):'<span class="muted">—</span>'}</td>
+      <td><span class="mlbl ${mCls(r.method)}">${mLab(r.method)}</span></td>
+      <td class="num">${pct(r.confidence)}</td>
+      <td class="reason-cell">${esc(plainReason(r))}
+        <br><button class="btn btn-sm" style="margin-top:5px;font-size:11px" data-pid="${esc(r.payment_id)}">Evidence →</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function plainReason(r){
+  if(r.status==='MATCHED'){
+    if(r.evidence&&r.evidence.late_settlement_warning)
+      return `Matched — but bank settled ${r.evidence.late_settlement_days} days after Razorpay capture.`;
+    return r.method==='ai'
+      ?'Matched via AI-verified fuzzy ID, amount, and date evidence.'
+      :'Exact three-way match: order, Razorpay net, and bank credit aligned.';
+  }
+  const map = {
+    AMOUNT_MISMATCH: `Bank settled ${inr(Math.abs(r.discrepancy))} less than Razorpay net. Investigate the gap.`,
+    DUPLICATE_BANK: 'Bank file has multiple rows for this payment ID — only the first credit is eligible.',
+    FAILED: 'Payment failed and should not appear in bank settlement.',
+    GHOST_ENTRY: 'Bank credit has no matching Razorpay ledger entry.',
+    MISSING_IN_BANK: 'Razorpay captured the payment; bank has no corresponding settlement.',
+    REFUND_MISSING: 'Bank entry is a debit/refund, not a settlement credit.',
+    LATE_SETTLEMENT: 'Settlement arrived more than 3 days after Razorpay capture.',
+    INSUFFICIENT_EVIDENCE: 'Fuzzy match score too low to auto-resolve — needs human review.',
+    PARSE_ERROR: 'Malformed CSV row was quarantined to protect the run integrity.',
+  };
+  return map[r.exception_type]||r.reason;
+}
+
+/* ── Modal ──────────────────────────────────────── */
+async function openModal(pid){
+  const r = (report.records||[]).find(x=>x.payment_id===pid);
+  if(!r) return;
+  const audit = await fetch(`/api/audit/${encodeURIComponent(pid)}`).then(x=>x.json()).catch(()=>({audits:[]}));
+  const ok = r.status==='MATCHED';
+  document.getElementById('modalPid').textContent = pid;
+  document.getElementById('modalSub').textContent =
+    `${ok?'✓ Reconciled':'⚠ Unable to resolve'}${r.exception_type?' · '+lab(r.exception_type):''}${r.evidence&&r.evidence.late_settlement_warning?' · ⏰ Late settlement':''}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="kv-g">
+      ${kv('Order Amount',   inr(r.order_amount))}
+      ${kv('Razorpay Net',  inr(r.razorpay_net_amount))}
+      ${kv('Bank Settled',  inr(r.bank_settled_amount))}
+      ${kv('Discrepancy',   inr(r.discrepancy))}
+      ${kv('Checked By',    mLab(r.method))}
+      ${kv('Confidence',    pct(r.confidence))}
+    </div>
+    <div class="kv"><div class="kv-l">Plain Explanation</div>
+      <div class="kv-v" style="font-size:14px;font-weight:400;color:var(--text-2)">${esc(plainReason(r))}</div>
+    </div>
+    <div class="kv"><div class="kv-l">Engine Decision Reason</div>
+      <div class="kv-v" style="font-size:13px;font-weight:400;color:var(--text-2)">${esc(r.reason)}</div>
+    </div>
+    <div class="kv"><div class="kv-l">Evidence Signals</div><pre>${esc(JSON.stringify(r.evidence||{},null,2))}</pre></div>
+    <div class="src-g">
+      <div class="kv"><div class="kv-l">Order Source</div><pre>${esc(JSON.stringify(r.source_order||{},null,2))}</pre></div>
+      <div class="kv"><div class="kv-l">Razorpay Source</div><pre>${esc(JSON.stringify(r.source_razorpay||{},null,2))}</pre></div>
+      <div class="kv"><div class="kv-l">Bank Source</div><pre>${esc(JSON.stringify(r.source_bank||{},null,2))}</pre></div>
+    </div>
+    <div class="kv" style="border-color:var(--rzp-glow)">
+      <div class="kv-l" style="color:var(--rzp-xl)">⚡ AI Resolution Agent Actions</div>
+      <div style="display:flex;gap:10px;margin-top:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-primary" onclick="generateTicket('${esc(pid)}')">🎫 Auto-Draft Razorpay Ticket</button>
+        <button class="btn btn-sm" onclick="generateAlert('${esc(pid)}')">🚨 Generate Slack Ops Alert</button>
+      </div>
+      <div id="actionOutput" style="margin-top:10px;display:none"></div>
+    </div>
+    <div class="kv"><div class="kv-l">Audit Trail</div><pre>${esc(JSON.stringify(audit.audits||[],null,2))}</pre></div>
+  `;
+  document.getElementById('modal').showModal();
+}
+function kv(l,v){ return `<div class="kv"><div class="kv-l">${esc(l)}</div><div class="kv-v">${esc(v)}</div></div>`; }
+
+/* ── FinBot ─────────────────────────────────────── */
+async function ask(q){
+  const text = (q||document.getElementById('question').value).trim();
+  if(!text) return;
+  document.getElementById('question').value='';
+  const thread = document.getElementById('thread');
+  thread.innerHTML += `<div class="msg user"><div class="msg-who">You</div><div class="msg-body">${esc(text)}</div></div>`;
+  const lid = 'ld'+Date.now();
+  thread.innerHTML += `<div class="msg bot" id="${lid}"><div class="msg-who">FinBot</div><div class="msg-body"><div class="typing"><span></span><span></span><span></span></div></div></div>`;
+  thread.scrollTop = thread.scrollHeight;
+  try{
+    const res = await fetch('/api/ask',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({question:text})}).then(r=>r.json());
+    const el = document.getElementById(lid);
+    if(el){ const body = el.querySelector('.msg-body'); body.innerHTML=''; typeText(body, res.answer||'No answer available.'); }
+  } catch(e){
+    const el=document.getElementById(lid);
+    if(el) el.querySelector('.msg-body').textContent='Error reaching the server.';
+  }
+  thread.scrollTop = thread.scrollHeight;
+}
+function typeText(el,text,i=0){
+  if(i===0) el.textContent='';
+  if(i<text.length){
+    el.textContent += text[i];
+    setTimeout(()=>typeText(el,text,i+1), i<50?11:3);
+  }
+}
+
+/* ── Export CSV ─────────────────────────────────── */
+document.getElementById('exportBtn').addEventListener('click',()=>{
+  const data = filtered();
+  const cols = ['payment_id','status','exception_type','order_amount','razorpay_net_amount','bank_settled_amount','discrepancy','method','confidence','reason'];
+  const csv = [cols.join(','), ...data.map(r=>cols.map(c=>{
+    const v = c==='reason'?plainReason(r):r[c];
+    if(v==null) return '';
+    const s = String(v).replace(/"/g,'""');
+    return /[,"\n]/.test(s)?`"${s}"`:s;
+  }).join(','))].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = `fincontroller_${Date.now()}.csv`;
+  a.click();
+});
+
+/* ── Re-run ─────────────────────────────────────── */
+document.getElementById('rerunBtn').addEventListener('click', async()=>{
+  const btn=document.getElementById('rerunBtn');
+  const sp=document.getElementById('spinner');
+  btn.disabled=true; sp.style.display='inline-block';
+  try{
+    const r = await fetch('/api/rerun',{method:'POST'}).then(x=>x.json());
+    if(r.error){ alert('Re-run failed: '+r.error); return; }
+    report=r; renderAll();
+  } catch(e){ alert('Could not reach server.'); }
+  finally{ btn.disabled=false; sp.style.display='none'; }
+});
+
+/* ── Sort toggle ────────────────────────────────── */
+document.getElementById('sortBtn').addEventListener('click',()=>{
+  sortByDisc=!sortByDisc;
+  document.getElementById('sortBtn').textContent = sortByDisc?'⇅ Sorted by ₹':'⇅ Sort by ₹';
+  document.getElementById('sortBtn').classList.toggle('active', sortByDisc);
+  renderTable();
+});
+
+/* ── Event delegation ───────────────────────────── */
+document.getElementById('search').addEventListener('input', renderTable);
+document.getElementById('tableBody').addEventListener('click',e=>{
+  const btn = e.target.closest('button[data-pid]');
+  const row = e.target.closest('tr[data-pid]');
+  const pid = (btn||row)?.dataset.pid;
+  if(pid) openModal(pid);
+});
+document.getElementById('tableBody').addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  const row = e.target.closest('tr[data-pid]');
+  if(row) openModal(row.dataset.pid);
+});
+document.getElementById('sendBtn').onclick = ()=>ask();
+document.getElementById('question').addEventListener('keydown',e=>{ if(e.key==='Enter') ask(); });
+document.getElementById('closeModal').onclick = ()=>document.getElementById('modal').close();
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target===document.getElementById('modal')) document.getElementById('modal').close(); });
+
+/* ── Live Webhook Simulator ─────────────────────── */
+async function triggerSimEvent(scenarioId){
+  try{
+    const res = await fetch('/api/simulate-event',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({scenario_id:scenarioId})
+    }).then(r=>r.json());
+    if(res.status==='success'){
+      report = res.report;
+      renderAll();
+      showToast(`⚡ Live Webhook Event Ingested: ${res.event.payment_id} (${res.record.status})`);
+    }
+  } catch(e){ alert('Failed to fire webhook event.'); }
+}
+
+/* ── Bank Statement Upload ──────────────────────── */
+document.getElementById('uploadBankBtn').onclick = ()=>document.getElementById('uploadModal').showModal();
+const dropzone = document.getElementById('dropzone');
+const bankFileInput = document.getElementById('bankFileInput');
+dropzone.onclick = ()=>bankFileInput.click();
+dropzone.ondragover = e=>{ e.preventDefault(); dropzone.style.background='var(--surface-3)'; };
+dropzone.ondragleave = ()=>{ dropzone.style.background='var(--surface-2)'; };
+dropzone.ondrop = e=>{
+  e.preventDefault(); dropzone.style.background='var(--surface-2)';
+  if(e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+};
+bankFileInput.onchange = ()=>{ if(bankFileInput.files.length) uploadFile(bankFileInput.files[0]); };
+
+async function uploadFile(file){
+  const statusEl = document.getElementById('uploadStatus');
+  statusEl.textContent = 'Uploading and processing statement...';
+  const formData = new FormData();
+  formData.append('file', file);
+  try{
+    const res = await fetch('/api/upload-bank',{method:'POST',body:formData}).then(r=>r.json());
+    if(res.error){ statusEl.textContent = 'Error: '+res.error; return; }
+    report = res;
+    renderAll();
+    statusEl.textContent = '✓ Bank statement ingested successfully!';
+    setTimeout(()=>document.getElementById('uploadModal').close(), 1200);
+  } catch(e){ statusEl.textContent = 'Failed to upload statement.'; }
+}
+
+/* ── Razorpay API Sync ──────────────────────────── */
+document.getElementById('rzpApiBtn').onclick = ()=>document.getElementById('apiModal').showModal();
+document.getElementById('startRzpSyncBtn').onclick = async()=>{
+  const key_id = document.getElementById('rzpKeyId').value;
+  const key_secret = document.getElementById('rzpKeySecret').value;
+  const statusEl = document.getElementById('apiSyncStatus');
+  statusEl.textContent = 'Fetching transactions from Razorpay API...';
+  try{
+    const res = await fetch('/api/razorpay-sync',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({key_id, key_secret})
+    }).then(r=>r.json());
+    statusEl.textContent = `✓ Synced ${res.count} live transactions from Razorpay REST API!`;
+  } catch(e){ statusEl.textContent = 'API sync failed.'; }
+};
+
+/* ── AI Resolution Agent Actions ────────────────── */
+async function generateTicket(pid){
+  const out = document.getElementById('actionOutput');
+  out.style.display = 'block'; out.textContent = 'Generating Razorpay Support Ticket...';
+  const res = await fetch('/api/actions/ticket',{
+    method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({payment_id:pid})
+  }).then(r=>r.json());
+  out.innerHTML = `<div class="kv-l">Auto-Drafted Razorpay Merchant Support Ticket</div><pre>${esc(res.subject)}\n\n${esc(res.body)}</pre>`;
+}
+
+async function generateAlert(pid){
+  const out = document.getElementById('actionOutput');
+  out.style.display = 'block'; out.textContent = 'Generating Slack Alert...';
+  const res = await fetch('/api/actions/alert',{
+    method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({payment_id:pid})
+  }).then(r=>r.json());
+  out.innerHTML = `<div class="kv-l">Formatted Slack Ops Alert</div><pre>${esc(res.slack_message)}</pre>`;
+}
+
+function showToast(msg){
+  let t = document.getElementById('toast');
+  if(!t){
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:var(--rzp);color:#fff;padding:12px 20px;border-radius:var(--r);box-shadow:var(--shadow);z-index:9999;font-weight:600;font-size:13px;animation:fadeUp .3s ease';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.display = 'block';
+  setTimeout(()=>{ t.style.display = 'none'; }, 3500);
+}
+function renderFooter(){
+  document.getElementById('footer').innerHTML =
+    `<span class="status-complete"><span class="dot"></span>COMPLETE</span>` +
+    `run_id=${report.run_id} &nbsp;|&nbsp; sources=3 (orders, razorpay, bank) &nbsp;|&nbsp; ` +
+    `total_razorpay_net=${inr(report.total_razorpay_net)} &nbsp;|&nbsp; ` +
+    `total_bank_settled=${inr(report.total_bank_settled)} &nbsp;|&nbsp; ` +
+    `match_rate=${pct(report.match_rate)} &nbsp;|&nbsp; exceptions=${report.exceptions}`;
+}
+</script>
+</body>
+</html>
