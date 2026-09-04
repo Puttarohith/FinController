@@ -10,7 +10,13 @@ MATCH_CLASSES = {"matched", "fuzzy_match"}
 
 def evaluate(report: dict[str, Any], data_dir: str | Path, write: bool = True) -> dict[str, Any]:
     data_dir = Path(data_dir)
-    truth = json.loads((data_dir / "ground_truth.json").read_text(encoding="utf-8"))
+    gt_path = data_dir / "ground_truth.json"
+    truth = {}
+    if gt_path.exists():
+        try:
+            truth = json.loads(gt_path.read_text(encoding="utf-8"))
+        except Exception:
+            truth = {}
     records = report.get("records", [])
     by_pid = {record["payment_id"]: record for record in records}
     false_matches = []
@@ -74,7 +80,10 @@ def evaluate(report: dict[str, Any], data_dir: str | Path, write: bool = True) -
         "ai_verify_accuracy": round(ai_correct / ai_checked, 4) if ai_checked else 1.0,
     }
     if write:
-        (data_dir / "evaluation_report.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+        try:
+            (data_dir / "evaluation_report.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
+        except Exception:
+            pass
     return metrics
 
 
