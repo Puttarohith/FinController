@@ -33,6 +33,9 @@ Finance operations teams face a critical challenge closing the loop between merc
 
 ### 📁 3. Drag-and-Drop Bank Statement Ingestion
 - Drag & drop custom `.csv`, `.xls`, or `.xlsx` bank settlement files directly onto the UI dropzone for instant automated reconciliation.
+- **Included Sample Test Statements**:
+  - `successful_bank_statement.csv`: Test file containing 100% clean settlement matches.
+  - `sample_custom_bank_statement.csv`: Test file containing custom transactions and edge-case exceptions.
 
 ### 🤖 4. Autonomous AI Action Agent
 For unresolved exceptions, FinBot doesn't just explain the issue—it takes action:
