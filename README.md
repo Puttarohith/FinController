@@ -37,10 +37,15 @@ Finance operations teams face a critical challenge closing the loop between merc
   - `successful_bank_statement.csv`: Test file containing 100% clean settlement matches.
   - `sample_custom_bank_statement.csv`: Test file containing custom transactions and edge-case exceptions.
 
-### 🤖 4. Autonomous AI Action Agent
-For unresolved exceptions, FinBot doesn't just explain the issue—it takes action:
-- 🎫 **Auto-Draft Razorpay Support Tickets**: Generates formatted merchant tickets requesting UTR traces.
-- 🚨 **Generate Slack Ops Alerts**: Generates formatted team notifications for high-risk exceptions.
+### 🛡️ 5. AI Fraud & Anomaly Detection Engine
+- Evaluates transactions against 3 automated fraud vectors:
+  - `HIGH_VELOCITY_ALERT`: Identifies rapid duplicate settlement attempts.
+  - `BENEFICIARY_MISMATCH`: Flags discrepancies between customer name and bank narration.
+  - `SUSPICIOUS_GHOST_CREDIT`: Triggers critical alerts for unmatched bank credits >₹25,000.
+
+### 📈 6. Dispute Aging & SLA Dashboard
+- **SLA Aging Matrix**: Categorizes open disputes into `0–7 Days (Fresh)`, `8–14 Days (Pending)`, and `15+ Days (Critical SLA Breach)`.
+- **Payment Method Distribution**: Tracks volume, exception share, and rupee amounts across UPI, Card, Netbanking, and Wallet channels.
 
 ---
 
