@@ -1,4 +1,5 @@
-# FinController — AI Finance Reconciliation Platform (Hackathon Edition) 🚀
+# FinController — AI Finance Reconciliation Platform 🚀
+https://fin-controller-iota.vercel.app/
 
 [![Razorpay Theme](https://img.shields.io/badge/Theme-Razorpay%20Navy%20%26%20Blue-146EB4)](https://razorpay.com)
 [![Python](https://img.shields.io/badge/Backend-Python%20%7C%20Flask-3776AB)](https://flask.palletsprojects.com/)
