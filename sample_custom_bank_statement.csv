@@ -1,0 +1,9 @@
+settlement_date,payment_id,settled_amount,credit_debit,narration
+2026-09-01,pay_001,490.00,CR,Razorpay Settlement Payout Ref 1001
+2026-09-01,pay_002,1176.00,CR,Razorpay Settlement Payout Ref 1002
+2026-09-02,pay_003,2450.00,CR,Razorpay Settlement Payout Ref 1003
+2026-09-02,pay_004,1960.00,CR,Razorpay Settlement Payout Ref 1004
+2026-09-03,pay_005,980.00,CR,Razorpay Settlement Payout Ref 1005
+2026-09-03,pay_006,7840.00,CR,Razorpay Settlement Payout Ref 1006
+2026-09-04,pay_custom_test_007,5000.00,CR,Custom Ingest Test Credit
+2026-09-04,pay_custom_test_008,12500.00,CR,Custom Ingest Test Payout

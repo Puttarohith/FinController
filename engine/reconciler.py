@@ -299,6 +299,15 @@ def reconcile(data_dir: str | Path, bank_df: pd.DataFrame | None = None) -> dict
         audits.append(_audit(rec, "parse_error=true"))
 
     record_dicts = [record.to_dict() for record in sorted(records, key=lambda item: item.payment_id)]
+    
+    # ── AI Fraud & Anomaly Detection ──────────────────────────────────────────
+    from .fraud_detector import detect_anomalies
+    fraud_alerts = detect_anomalies(record_dicts)
+
+    # ── Dispute Aging & Analytics ──────────────────────────────────────────────
+    from .analytics import calculate_dispute_analytics
+    analytics = calculate_dispute_analytics(record_dicts)
+
     matched = sum(1 for record in record_dicts if record["status"] == "MATCHED")
     exceptions = len(record_dicts) - matched
     exception_summary: dict[str, int] = {}
@@ -307,7 +316,7 @@ def reconcile(data_dir: str | Path, bank_df: pd.DataFrame | None = None) -> dict
             exception_summary[record["exception_type"]] = exception_summary.get(record["exception_type"], 0) + 1
 
     elapsed_ms = (time.perf_counter() - started) * 1000
-    report = ReconciliationReport(
+    report_dict = asdict(ReconciliationReport(
         run_id=str(uuid.uuid4()),
         run_at=run_at,
         total_records=len(record_dicts),
@@ -322,8 +331,12 @@ def reconcile(data_dir: str | Path, bank_df: pd.DataFrame | None = None) -> dict
         audits=[audit.to_dict() for audit in audits],
         processing_time_ms=round(elapsed_ms, 2),
         records_per_second=round(len(record_dicts) / (elapsed_ms / 1000), 2) if elapsed_ms else 0,
-    )
-    return asdict(report)
+    ))
+
+    report_dict["fraud_alerts"] = fraud_alerts
+    report_dict["fraud_count"] = len(fraud_alerts)
+    report_dict["analytics"] = analytics
+    return report_dict
 
 
 def _safe_read_csv(path: Path, source: str) -> tuple[pd.DataFrame, list[dict]]:
